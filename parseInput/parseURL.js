@@ -1,5 +1,18 @@
 /**
  * parse URL to object
+ * example: console.log(parseURL('https://marketplace.visualstudio.com/items?itemName=Equinusocio.vsc-material-theme&itemLast=abc#hashtag1'))
+ * result:
+ * {
+ *   "host": "marketplace.visualstudio.com",
+ *   "port": "",
+ *   "query": "?itemName=Equinusocio.vsc-material-theme&itemLast=abc",
+ *   "params": {
+ *       "itemName": "Equinusocio.vsc-material-theme",
+ *       "itemLast": "abc"
+ *   },
+ *   "hash": "hashtag1"
+ * }
+ * 
  * @param   string url
  * @returns object
  */
@@ -27,15 +40,11 @@ function parseURL(url) {
     };
 }
 
-// console.log(parseURL('https://marketplace.visualstudio.com/items?itemName=Equinusocio.vsc-material-theme&itemLast=abc#hashtag1'))
-
-// {
-//     "host": "marketplace.visualstudio.com",
-//     "port": "",
-//     "query": "?itemName=Equinusocio.vsc-material-theme&itemLast=abc",
-//     "params": {
-//         "itemName": "Equinusocio.vsc-material-theme",
-//         "itemLast": "abc"
-//     },
-//     "hash": "hashtag1"
-// }
+/*
+* get params in urls
+*
+* @return object
+*/
+const getQueriesInUrl = () => {
+    return new Map(window.location.search.slice(1).split('&').map(keyValue => keyValue.split('=')));
+};
