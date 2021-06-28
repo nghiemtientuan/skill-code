@@ -1,0 +1,26 @@
+{
+  "name": "code-skill",
+  "version": "1.0.0",
+  "description": "This is code skill",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nghiemtientuan/code-skill.git"
+  },
+  "author": "Tuan-Linh-Chi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nghiemtientuan/code-skill/issues"
+  },
+  "homepage": "https://github.com/nghiemtientuan/code-skill#readme",
+  "devDependencies": {
+    "husky": "^6.0.0"
+  },
+  "dependencies": {
+    "@commitlint/cli": "^12.1.4",
+    "@commitlint/config-conventional": "^12.1.4"
+  }
+}
