@@ -1,0 +1,208 @@
+def author = ''
+def message = ''
+def colorGood = '#36a64f'
+def colorWarning = '#FFDD87'
+def colorDanger = '#DF564E'
+def slackChannel = '#007_gerbera_hrevaluation_ci'
+
+def getGitAuthor = {
+    def commit = sh(returnStdout: true, script: 'git rev-parse HEAD')
+    author = sh(returnStdout: true, script: "git --no-pager show -s --format='%an' ${commit}").trim()
+}
+
+def getLastCommitMessage = {
+    message = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+}
+
+def populateGlobalVariables = {
+    getLastCommitMessage()
+    getGitAuthor()
+}
+
+pipeline {
+    agent any
+
+    options {
+        skipDefaultCheckout true
+        ansiColor 'xterm'
+    }
+
+    environment {
+        LANG = 'en_US.UTF-8'
+        LC_ALL = 'en_US.UTF-8'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/develop']], extensions: [], userRemoteConfigs: [[credentialsId: 'tda-devops', url: 'git@github.com:tda-corp/hr-new-client.git']]])
+            }
+
+            post {
+                success {
+                    echo 'Checkout OK'
+                }
+            }
+        }
+        stage('Start') {
+            steps {
+                script {
+                    echo 'Start CI Flow'
+                    populateGlobalVariables()
+                }
+            }
+
+            post {
+                success {
+                    slackSend(channel: slackChannel, message: 'Deploy process was triggered on CI machine!', attachments: [
+                        [
+                            color: "${colorWarning}",
+                            author_name: "${author}",
+                            author_icon: 'https://pbs.twimg.com/profile_images/378800000741916542/3b48705651866845dbacf64558db1582.jpeg',
+                            fields: [
+                                [
+                                    title: 'Built by',
+                                    value: "${env.JOB_NAME}",
+                                    short: true
+                                ],
+                                [
+                                    title: 'Built Number',
+                                    value: "${env.BUILD_NUMBER}",
+                                    short: true
+                                ],
+                                [
+                                    title: 'Git Branch',
+                                    value: "${env.GIT_BRANCH}"
+                                ],
+                                [
+                                    title: 'Commit Message',
+                                    value: "${message}"
+                                ],
+                                [
+                                    title: 'Build URL',
+                                    value: "${env.BUILD_URL}"
+                                ]
+                            ]
+                        ]
+                    ])
+                }
+            }
+        }
+
+        stage('NPM Install') {
+            steps {
+                sh 'yarn install'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'yarn build'
+            }
+
+            post {
+                success {
+                    echo 'Build OK'
+                }
+            }
+        }
+
+        stage('Zip file') {
+            steps {
+                sh 'tar -czvf ./dist-client.tar.gz ./dist '
+            }
+        }
+
+        stage('Copy') {
+            steps {
+                sshagent(['tda-sshkey']) {
+                    sh 'scp -o StrictHostKeyChecking=no ./dist-client.tar.gz tdacd@13.231.140.109:.'
+                // sh 'ssh tdacd@192.168.100.38 sudo cp 050Server.war /opt/tomcat/webapps/'
+                }
+            }
+        }
+
+        stage('Unzip') {
+            steps {
+                sshagent(['tda-sshkey']) {
+                    sh 'ssh -o StrictHostKeyChecking=no tdacd@13.231.140.109 -t -t "sudo rm -rf /home/ubuntu/opt/hr_evaluation/frontend/hr-new-client/dist && sudo tar -xvzf /home/tdacd/dist-client.tar.gz -C /home/ubuntu/opt/hr_evaluation/frontend/hr-new-client/"'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            slackSend(channel: slackChannel, message: 'Successfully automated deployment.', attachments: [
+                [
+                    color: "${colorGood}",
+                    author_name: "${author}",
+                    author_icon: 'https://pbs.twimg.com/profile_images/378800000741916542/3b48705651866845dbacf64558db1582.jpeg',
+                    fields: [
+                        [
+                            title: 'Built by',
+                            value: "${env.JOB_NAME}",
+                            short: true
+                        ],
+                        [
+                            title: 'Built Number',
+                            value: "${env.BUILD_NUMBER}",
+                            short: true
+                        ],
+                        [
+                            title: 'Git Branch',
+                            value: "${env.GIT_BRANCH}"
+                        ],
+                        [
+                            title: 'Commit Message',
+                            value: "${message}"
+                        ],
+                        [
+                            title: 'Build URL',
+                            value: "${env.BUILD_URL}"
+                        ],
+                        [
+                            title: 'Deployed to',
+                            value: 'http://stg.client.hre.tdadevelop.com/'
+                        ]
+                    ]
+                ]
+            ])
+        }
+
+        unsuccessful {
+            slackSend(channel: slackChannel, message: 'Error occur when automated deployment.', attachments:
+            [
+                [
+                    color: "${colorDanger}",
+                    author_name: "${author}",
+                    author_icon: 'https://pbs.twimg.com/profile_images/378800000741916542/3b48705651866845dbacf64558db1582.jpeg',
+                    fields: [
+                        [
+                            title: 'Built by',
+                            value: "${env.JOB_NAME}",
+                            short: true
+                        ],
+                        [
+                            title: 'Built Number',
+                            value: "${env.BUILD_NUMBER}",
+                            short: true
+                        ],
+                        [
+                            title: 'Git Branch',
+                            value: "${env.GIT_BRANCH}"
+                        ],
+                        [
+                            title: 'Commit Message',
+                            value: "${message}"
+                        ],
+                        [
+                            title: 'Build URL',
+                            value: "${env.BUILD_URL}"
+                        ]
+                    ]
+                ]
+            ])
+        }
+    }
+}
